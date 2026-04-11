@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { Users, UserPlus, FileEdit, Trash2, BookOpen, X } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
-const StudentList = ({ onTaskAdded }) => {
+const StudentList = ({ onTaskAdded, showToast }) => {
   const [students, setStudents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -16,6 +17,10 @@ const StudentList = ({ onTaskAdded }) => {
   // Task form
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
+
+  // Confirm dialog state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteStudentId, setDeleteStudentId] = useState(null);
 
   const fetchStudents = async () => {
     try {
@@ -35,26 +40,34 @@ const StudentList = ({ onTaskAdded }) => {
     try {
       if (currentStudent) {
         await api.updateStudent(currentStudent._id, { name, class: className, rollNumber });
+        showToast('Student updated successfully!', 'success');
       } else {
         await api.addStudent({ name, class: className, rollNumber });
+        showToast('Student added successfully!', 'success');
       }
       setIsModalOpen(false);
       fetchStudents();
     } catch (err) {
-      alert(err.message || 'Error saving student');
+      showToast(err.message || 'Error saving student', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if(window.confirm('Are you sure you want to delete this student? All tasks will also be deleted.')){
-      try {
-        await api.deleteStudent(id);
-        fetchStudents();
-        onTaskAdded(); // refresh tasks list too
-      } catch (err) {
-        console.error(err);
-      }
+  const openDeleteConfirm = (id) => {
+    setDeleteStudentId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    setConfirmOpen(false);
+    try {
+      await api.deleteStudent(deleteStudentId);
+      fetchStudents();
+      onTaskAdded();
+      showToast('Student deleted successfully.', 'success');
+    } catch (err) {
+      showToast(err.message || 'Error deleting student', 'error');
     }
+    setDeleteStudentId(null);
   };
 
   const handleAssignTask = async (e) => {
@@ -67,8 +80,9 @@ const StudentList = ({ onTaskAdded }) => {
       });
       setIsTaskModalOpen(false);
       onTaskAdded();
+      showToast('Task assigned successfully!', 'success');
     } catch (err) {
-      alert(err.message || 'Error assigning task');
+      showToast(err.message || 'Error assigning task', 'error');
     }
   };
 
@@ -121,7 +135,7 @@ const StudentList = ({ onTaskAdded }) => {
                 <button className="icon-btn" title="Edit Student" onClick={() => openStudentModal(student)}>
                   <FileEdit size={18} />
                 </button>
-                <button className="icon-btn delete" title="Delete Student" onClick={() => handleDelete(student._id)}>
+                <button className="icon-btn delete" title="Delete Student" onClick={() => openDeleteConfirm(student._id)}>
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -187,6 +201,14 @@ const StudentList = ({ onTaskAdded }) => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Delete Student"
+        message="Are you sure you want to delete this student? All assigned tasks will also be deleted."
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 };

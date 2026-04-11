@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { BookOpen, CheckCircle, Trash2, AlertCircle } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
-const TaskList = ({ refreshTrigger }) => {
+const TaskList = ({ refreshTrigger, showToast }) => {
   const [tasks, setTasks] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTaskId, setDeleteTaskId] = useState(null);
 
   const fetchTasks = async () => {
     try {
@@ -22,20 +25,30 @@ const TaskList = ({ refreshTrigger }) => {
     try {
       await api.updateTask(task._id, { isCompleted: !task.isCompleted });
       fetchTasks();
+      showToast(
+        task.isCompleted ? 'Task marked as pending.' : 'Task marked as completed!',
+        'success'
+      );
     } catch (err) {
-      console.error(err);
+      showToast('Failed to update task.', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if(window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await api.deleteTask(id);
-        fetchTasks();
-      } catch (err) {
-        console.error(err);
-      }
+  const openDeleteConfirm = (id) => {
+    setDeleteTaskId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    setConfirmOpen(false);
+    try {
+      await api.deleteTask(deleteTaskId);
+      fetchTasks();
+      showToast('Task deleted successfully.', 'success');
+    } catch (err) {
+      showToast('Failed to delete task.', 'error');
     }
+    setDeleteTaskId(null);
   };
 
   return (
@@ -78,7 +91,7 @@ const TaskList = ({ refreshTrigger }) => {
                 >
                   <CheckCircle size={20} />
                 </button>
-                <button className="icon-btn delete" onClick={() => handleDelete(task._id)} title="Delete Task">
+                <button className="icon-btn delete" onClick={() => openDeleteConfirm(task._id)} title="Delete Task">
                   <Trash2 size={20} />
                 </button>
               </div>
@@ -86,6 +99,14 @@ const TaskList = ({ refreshTrigger }) => {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Delete Task"
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 };

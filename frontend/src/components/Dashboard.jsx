@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, LayoutDashboard } from 'lucide-react';
 import StudentList from './StudentList';
 import TaskList from './TaskList';
+import Toast from './Toast';
 
 const Dashboard = () => {
   const { auth, logout } = useAuth();
   const [refreshTasks, setRefreshTasks] = useState(0);
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const handleTaskAdded = () => {
     setRefreshTasks(prev => prev + 1);
@@ -29,10 +40,12 @@ const Dashboard = () => {
 
       <div className="container">
         <div className="dashboard-grid">
-          <StudentList onTaskAdded={handleTaskAdded} />
-          <TaskList key={refreshTasks} refreshTrigger={refreshTasks} />
+          <StudentList onTaskAdded={handleTaskAdded} showToast={showToast} />
+          <TaskList key={refreshTasks} refreshTrigger={refreshTasks} showToast={showToast} />
         </div>
       </div>
+
+      <Toast toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
